@@ -1,3 +1,9 @@
+# Kernel modules
+*.ko
+*.o
+*.mod
+*.cmd
+
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json
