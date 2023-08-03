@@ -1,8 +1,10 @@
 # Kernel modules
 *.ko
 *.o
-*.mod
+*.mod.*
 *.cmd
+*.symvers
+*.order
 
 ### VisualStudioCode template
 .vscode/*
