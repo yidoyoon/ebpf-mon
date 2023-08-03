@@ -1,0 +1,3 @@
+[submodule "utils/cadvisor-lite"]
+	path = utils/cadvisor-lite
+	url = https://github.com/yidoyoon/cadvisor-lite.git
