@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -31,7 +32,12 @@ func SetupSignalHandling() {
 		sig := <-c
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGSEGV:
-			exec.Command("sh", "-c", "rmmod metric.ko").Output()
+			if _, err := exec.Command("sh", "-c", "rmmod metric.ko").Output(); err != nil {
+				fmt.Printf("Failed to remove module: %v\n", err)
+			}
+			if _, err := exec.Command("sh", "-c", "docker rm -f $(docker ps -a -q --filter=name=busybox-ebpfmon)").Output(); err != nil {
+				fmt.Printf("Failed to remove containers: %v\n", err)
+			}
 			fmt.Printf("%s received, stopping module and program will exit.\n", sig)
 			os.Exit(0)
 		case syscall.SIGILL, syscall.SIGFPE, syscall.SIGPIPE:
@@ -67,19 +73,14 @@ func InsertModule(pidName []PidName) {
 		names += pair.name + string(',')
 	}
 
-	_, err := exec.Command("sh", "-c", "rmmod metric.ko").Output()
-	if err != nil {
-		log.Println(err)
-	}
-
 	cmd := "insmod metric.ko pid=" + pids[:len(pids)-1] + " pid_count=" + fmt.Sprint(pidLen) + " container_name=" + names[:len(names)-1]
-
-	_, err = exec.Command("sh", "-c", cmd).Output()
+	_, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
 		log.Println(err)
 	}
+	fmt.Println(cmd)
 
-	timePrint("[INFO] Container count(s) : " + fmt.Sprint(pidLen))
+	timePrint("[INFO] Container count(s) : " + fmt.Sprint(pidLen+1))
 }
 
 func ContainerChangeDetector(wg *sync.WaitGroup) {
@@ -96,7 +97,7 @@ func ContainerChangeDetector(wg *sync.WaitGroup) {
 			containerList := strings.Split(trimmedData, "\n")
 			for _, container := range containerList {
 				slice := strings.Split(container, ",")
-				pidName = append(pidName, PidName{slice[0], slice[2]})
+				pidName = append(pidName, PidName{slice[0], slice[2][1:]})
 			}
 			InsertModule(pidName)
 
@@ -113,40 +114,73 @@ func GetHash(text string) string {
 }
 
 func InitWatcher() {
-	timePrint("[INFO] Initialize Watcher...")
 	var pidName []PidName
-
 	containerData := "./.container_info"
+
+	if _, err := os.Stat(containerData); os.IsNotExist(err) {
+		_, err := os.Create(containerData)
+		if err != nil {
+			log.Fatalf("Failed creating file: %s", err)
+		}
+	}
 	exec.Command("sh", "-c", "docker ps -q|xargs docker inspect --format '{{.State.Pid}},{{.ID}},{{.Name}}' > "+containerData).Output()
 	data, _ := os.ReadFile(containerData)
 	trimmedData := strings.TrimSpace(string(data))
-	containerList := strings.Split(trimmedData, "\n")
-	for _, container := range containerList {
-		slice := strings.Split(container, ",")
-		pidName = append(pidName, PidName{slice[0], slice[2]})
+	if trimmedData != "" {
+		containerList := strings.Split(trimmedData, "\n")
+		for _, container := range containerList {
+			slice := strings.Split(container, ",")
+			if len(slice) > 2 {
+				pidName = append(pidName, PidName{slice[0], slice[2][1:]})
+			}
+		}
+		InsertModule(pidName)
+		timePrint("[INFO] Initialize Watcher...")
+		// Set beforeHash to the current hash at initialization
+		beforeHash = GetHash(string(data))
+	} else {
+		fmt.Println("There are no running containers in the current namespace.\nExit...")
+		_, err := exec.Command("sh", "-c", "rmmod metric.ko").Output()
+		if err != nil {
+			fmt.Printf("Failed to remove module: %v\n", err)
+		}
+		os.Exit(0)
 	}
-	InsertModule(pidName)
+
+	SetupSignalHandling()
 }
 
 func CreateTestContainer() {
 	fmt.Println("How many containers(busybox)?: ")
 	var count int
-	var discard string
-	fmt.Scanf("%d\n", &count)
-	fmt.Scanln(&discard)
-	for i := 0; i < count; i++ {
-		exec.Command("sh", "-c", "docker run -dt ubuntu").Output()
+	fmt.Scanf("%d", &count)
+	var wg sync.WaitGroup
+	for i := 1; i <= count; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			containerName := "busybox-ebpfmon" + strconv.Itoa(i)
+			_, err := exec.Command("sh", "-c", "docker run -itd --rm --name "+containerName+" busybox").Output()
+			if err != nil {
+				fmt.Printf("Failed to create container: %v\n", err)
+			} else {
+				fmt.Printf("Successfully created container: %s\n", containerName)
+			}
+		}(i)
 	}
+	wg.Wait()
 }
 
 func main() {
-	SetupSignalHandling()
 	fmt.Println("Do you want to create some dummy containers? (y/N)")
 	var command string
 	_, err := fmt.Scanln(&command)
-
-	for err != nil {
-		fmt.Println("The input is not valid. Please type 'y' for yes, 'N' for no.")
+	for err != nil || (command != "Y" && command != "y" && command != "N" && command != "n") {
+		if err != nil {
+			fmt.Println("An error occurred:", err)
+		} else {
+			fmt.Println("The input is not valid. Please type 'y' for yes, 'N' for no.")
+		}
 		_, err = fmt.Scanln(&command)
 	}
 	if command == "Y" || command == "y" {
