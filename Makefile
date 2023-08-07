@@ -18,7 +18,7 @@ build_watcher:
 	go build -o $(WATCHER_BIN) $(WATCHER_SRC)
 
 build_cadvisor_lite:
-	git module update --init
+	git submodule update --init
 	$(MAKE) -C ./utils/cadvisor-lite build
 
 clean:
