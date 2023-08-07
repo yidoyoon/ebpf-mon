@@ -6,6 +6,9 @@
 *.symvers
 *.order
 
+# cadvisor-lite
+vendor
+
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json
