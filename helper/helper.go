@@ -40,11 +40,12 @@ func IsDockerInstalled() bool {
 
 func CreateTestContainer(count int) {
 	var wg sync.WaitGroup
+	containerNumber := len(GetAllContainers())
 	for i := 1; i <= count; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			containerName := "busybox-ebpfmon" + strconv.Itoa(i)
+			containerName := "busybox-ebpfmon" + strconv.Itoa(containerNumber+i)
 			_, err := exec.Command("sh", "-c", "docker run -itd --rm --name "+containerName+" busybox").Output()
 			if err != nil {
 				fmt.Printf("Failed to create container: %v\n", err)
