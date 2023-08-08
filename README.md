@@ -122,7 +122,7 @@ cAdvisor-lite는 서브 모듈로 등록되어 있습니다. 아래 명령어를
 make setup_benchmark
 ```
 
-이후 `utils/cadvisor-lite`경로에서 추가 플래그와 수집 대상을 최소화하여 cAdvisor-lite를 실행합니다. root 권한과 함께 실행하지 않는다면, 메트릭 데이터가 수집되지 않을 수 있습니다.
+이후 `utils/cadvisor-lite`경로에서 추가 플래그와 수집 대상을 최소화하여 cAdvisor-lite를 실행합니다. 접근 권한에 따라, 자원 사용량이 수집되지 않을 수도 있습니다.
 
 ```shell
 # Run cAdvisor-lite with minimum stats
