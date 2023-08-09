@@ -110,7 +110,7 @@ busybox1_pgpgin 1509
 busybox1_pgpgout 747
 ```
 
-### 벤치마크
+### Benchmark
 
 다른 컨테이너 자원 사용량 수집 도구인 [cAdvisor](https://github.com/google/cadvisor)와 성능 비교를 수행할 수 있습니다. 다만, cAdvisor는 기본적으로 수집하는 항목이 훨씬 많기 때문에, 비슷한 조건에서 성능 비교를 수행할 수 있도록 수집 대상을 제한하는 것이 필요합니다. [cadvisor-lite](https://github.com/yidoyoon/cadvisor-lite)는 벤치마크를 수행하기 위해 기존의 cAdvisor 레포지토리를 수정하여 수집 항목을 최적화한 라이브러리입니다.
 
